@@ -1,14 +1,30 @@
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Float } from "@react-three/drei";
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { MutableRefObject } from "react";
 import * as THREE from "three";
 import { getHeroProgress, smoothstep } from "./heroTimeline";
 
-function Planet({ scrollProgress }: { scrollProgress: React.RefObject<number> }) {
+const HANDOFF_COMPLETE = 0.96;
+const COMPACT_ENTER = 0.985;
+const COMPACT_EXIT = 0.93;
+const COMPACT_SIZE = 260;
+const COMPACT_LEFT = -20;
+const COMPACT_TOP = -30;
+
+type CompactModeRef = MutableRefObject<boolean>;
+
+function Planet({
+  scrollProgress,
+  compactMode,
+}: {
+  scrollProgress: React.RefObject<number>;
+  compactMode: CompactModeRef;
+}) {
   const group = useRef<THREE.Group>(null);
   const inner = useRef<THREE.Mesh>(null);
   const mouse = useRef({ x: 0, y: 0 });
-  const { camera, viewport, size } = useThree();
+  const { camera, viewport } = useThree();
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
@@ -32,15 +48,24 @@ function Planet({ scrollProgress }: { scrollProgress: React.RefObject<number> })
     // Cinematic camera choreography — sphere starts huge & centered,
     // then lifts up and recedes as if the camera pulls back into space.
     const lift = Math.pow(p, 1.35) * 2.65;
-    const miniHandoff = smoothstep(0.8, 0.96, p);
+    const miniHandoff = smoothstep(0.8, HANDOFF_COMPLETE, p);
     const heroScale = 1.55 - smoothstep(0.05, 0.78, p) * 0.9;
     const currentViewport = viewport.getCurrentViewport(camera, [0, 0, 0]);
-    const isCompact = currentViewport.width < 6;
-    const miniCanvas = p >= 0.96 && size.width < 500;
-    const miniScale = miniCanvas ? 0.62 : isCompact ? 0.14 : 0.165;
-    const miniX = miniCanvas ? 0 : -currentViewport.width / 2 + (isCompact ? 0.62 : 0.88);
-    const miniY = miniCanvas ? 0 : currentViewport.height / 2 - (isCompact ? 0.62 : 0.82);
-    const scale = miniCanvas ? miniScale : THREE.MathUtils.lerp(heroScale, miniScale, miniHandoff);
+    const compact = compactMode.current;
+    const fullHeight = Math.max(1, window.innerHeight);
+    const compactScale = 0.62;
+    const fullMiniScale = (compactScale * COMPACT_SIZE) / fullHeight;
+    const targetX = COMPACT_LEFT + COMPACT_SIZE / 2;
+    const targetY = COMPACT_TOP + COMPACT_SIZE / 2;
+    const miniX = compact
+      ? 0
+      : -currentViewport.width / 2 + (currentViewport.height * targetX) / fullHeight;
+    const miniY = compact
+      ? 0
+      : currentViewport.height / 2 - (currentViewport.height * targetY) / fullHeight;
+    const scale = compact
+      ? compactScale
+      : THREE.MathUtils.lerp(heroScale, fullMiniScale, miniHandoff);
     group.current.position.x = THREE.MathUtils.lerp(0, miniX, miniHandoff);
     group.current.position.y = THREE.MathUtils.lerp(lift, miniY, miniHandoff);
     group.current.scale.setScalar(Math.max(0.05, scale));
@@ -116,7 +141,13 @@ function Orbits() {
   );
 }
 
-function Scene({ scrollProgress }: { scrollProgress: React.RefObject<number> }) {
+function Scene({
+  scrollProgress,
+  compactMode,
+}: {
+  scrollProgress: React.RefObject<number>;
+  compactMode: CompactModeRef;
+}) {
   const dir = useRef<THREE.DirectionalLight>(null);
   const amb = useRef<THREE.AmbientLight>(null);
   const three = useThree();
@@ -137,7 +168,7 @@ function Scene({ scrollProgress }: { scrollProgress: React.RefObject<number> }) 
     const p = getHeroProgress(scrollProgress.current ?? 0);
     // Go transparent at the same point the layer lifts above the content (p >= 0.96), so the
     // sphere hands off cleanly — only the mini sphere shows on top, never a full-screen cover.
-    if (p < 0.96) {
+    if (p < HANDOFF_COMPLETE && !compactMode.current) {
       if (p < 0.5) tmp.copy(cLight).lerp(cMid, p / 0.5);
       else tmp.copy(cMid).lerp(cDeep, (p - 0.5) / 0.5);
       bgColor.lerp(tmp, 0.08);
@@ -159,7 +190,7 @@ function Scene({ scrollProgress }: { scrollProgress: React.RefObject<number> }) 
       <ambientLight ref={amb} intensity={0.9} />
       <directionalLight ref={dir} position={[4, 6, 4]} intensity={0.9} color="#ffffff" />
       <pointLight position={[-4, -2, -2]} intensity={2} color="#7c3aed" />
-      <Planet scrollProgress={scrollProgress} />
+      <Planet scrollProgress={scrollProgress} compactMode={compactMode} />
     </>
   );
 }
@@ -228,6 +259,8 @@ function Fallback({ scrollProgress }: { scrollProgress: React.RefObject<number> 
 
 export function VelvetSphere({ scrollProgress }: { scrollProgress: React.RefObject<number> }) {
   const layer = useRef<HTMLDivElement>(null);
+  const compactMode = useRef(false);
+  const resizeRenderer = useRef<((width: number, height: number) => void) | null>(null);
   const [mounted, setMounted] = useState(false);
   const [webglOk, setWebglOk] = useState(true);
 
@@ -237,29 +270,50 @@ export function VelvetSphere({ scrollProgress }: { scrollProgress: React.RefObje
   }, []);
 
   useEffect(() => {
-    let compact = false;
+    let compact = compactMode.current;
+
+    const applyLayout = (nextCompact: boolean) => {
+      const node = layer.current;
+      if (!node) return;
+
+      compact = nextCompact;
+      compactMode.current = nextCompact;
+      node.dataset.compact = nextCompact ? "true" : "false";
+
+      if (nextCompact) {
+        node.style.inset = "auto";
+        node.style.left = `${COMPACT_LEFT}px`;
+        node.style.top = `${COMPACT_TOP}px`;
+        node.style.right = "auto";
+        node.style.bottom = "auto";
+        node.style.width = `${COMPACT_SIZE}px`;
+        node.style.height = `${COMPACT_SIZE}px`;
+        resizeRenderer.current?.(COMPACT_SIZE, COMPACT_SIZE);
+        return;
+      }
+
+      node.style.inset = "0";
+      node.style.width = "auto";
+      node.style.height = "auto";
+      const bounds = node.getBoundingClientRect();
+      resizeRenderer.current?.(
+        bounds.width || window.innerWidth,
+        bounds.height || window.innerHeight,
+      );
+    };
+
     const update = () => {
       const p = getHeroProgress(scrollProgress.current ?? 0);
       if (layer.current) {
-        const overlay = p >= 0.96;
-        const nextCompact = overlay && webglOk;
+        let nextCompact = compact;
+        if (!webglOk || (compact && p <= COMPACT_EXIT)) nextCompact = false;
+        else if (!compact && p >= COMPACT_ENTER) nextCompact = true;
+
+        if (nextCompact !== compact) applyLayout(nextCompact);
+
+        const overlay = webglOk && (compact || p >= HANDOFF_COMPLETE);
         layer.current.style.zIndex = overlay ? "40" : "0";
         layer.current.dataset.overlay = overlay ? "true" : "false";
-        if (nextCompact !== compact) {
-          compact = nextCompact;
-          layer.current.dataset.compact = compact ? "true" : "false";
-          if (compact) {
-            layer.current.style.inset = "auto";
-            layer.current.style.left = "-20px";
-            layer.current.style.top = "-30px";
-            layer.current.style.width = "260px";
-            layer.current.style.height = "260px";
-          } else {
-            layer.current.style.inset = "0";
-            layer.current.style.width = "auto";
-            layer.current.style.height = "auto";
-          }
-        }
       }
     };
     update();
@@ -286,7 +340,9 @@ export function VelvetSphere({ scrollProgress }: { scrollProgress: React.RefObje
           dpr={[1, 1.15]}
           gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
           camera={{ position: [0, 0, 5], fov: 42 }}
-          onCreated={({ gl }) => {
+          onCreated={({ gl, setSize }) => {
+            resizeRenderer.current = (width, height) => setSize(width, height, 0, 0);
+            if (compactMode.current) setSize(COMPACT_SIZE, COMPACT_SIZE, 0, 0);
             gl.domElement.addEventListener("webglcontextlost", (e) => {
               e.preventDefault();
               setWebglOk(false);
@@ -295,7 +351,7 @@ export function VelvetSphere({ scrollProgress }: { scrollProgress: React.RefObje
           }}
           className="pointer-events-none !absolute !inset-0"
         >
-          <Scene scrollProgress={scrollProgress} />
+          <Scene scrollProgress={scrollProgress} compactMode={compactMode} />
         </Canvas>
       )}
     </div>

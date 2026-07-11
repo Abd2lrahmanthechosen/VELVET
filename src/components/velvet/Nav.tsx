@@ -1,5 +1,6 @@
 import { motion, useMotionValueEvent, useScroll } from "framer-motion";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { getHeroScrollLength } from "./heroTimeline";
 
 const links = [
   { label: "Work", href: "#work" },
@@ -11,19 +12,26 @@ const links = [
 export function Nav() {
   const { scrollY } = useScroll();
   const [visible, setVisible] = useState(false);
-  const [prev, setPrev] = useState(0);
+  const previousY = useRef(0);
+  const visibleRef = useRef(false);
+
+  const setNavVisible = (next: boolean) => {
+    if (visibleRef.current === next) return;
+    visibleRef.current = next;
+    setVisible(next);
+  };
 
   useMotionValueEvent(scrollY, "change", (y) => {
     // Only appear after the hero cinematic (roughly 3 screens of scroll)
-    const heroEnd = typeof window !== "undefined" ? window.innerHeight * 3 : 2000;
+    const heroEnd = getHeroScrollLength();
     if (y < heroEnd - 100) {
-      setVisible(false);
-    } else if (y < prev) {
-      setVisible(true);
-    } else if (y > prev + 30) {
-      setVisible(false);
+      setNavVisible(false);
+    } else if (y < previousY.current) {
+      setNavVisible(true);
+    } else if (y > previousY.current + 30) {
+      setNavVisible(false);
     }
-    setPrev(y);
+    previousY.current = y;
   });
 
   return (

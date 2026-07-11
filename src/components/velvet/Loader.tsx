@@ -12,7 +12,7 @@ export function Loader() {
     <AnimatePresence>
       {!done && (
         <motion.div
-          className="fixed inset-0 z-[10000] flex items-center justify-center"
+          className="pointer-events-none fixed inset-0 z-[10000] flex items-center justify-center"
           style={{ background: "oklch(0.94 0.03 300)" }}
           initial={{ opacity: 1 }}
           exit={{ opacity: 0 }}

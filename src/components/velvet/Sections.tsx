@@ -1,5 +1,8 @@
 import { motion, useMotionValueEvent, useScroll, useTransform } from "framer-motion";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
+import type { PointerEvent } from "react";
+import { getHeroProgress, getHeroProgressFromScroll, smoothstep } from "./heroTimeline";
+import { LiquidTextMaskSection } from "./LiquidTextMaskSection";
 
 const projects = [
   {
@@ -35,12 +38,30 @@ const projects = [
 ];
 
 const services = [
-  "Brand Identity",
-  "Creative Strategy",
-  "AI Products",
-  "Web Experiences",
-  "SaaS Design",
-  "Growth Systems",
+  {
+    title: "Brand Identity",
+    copy: "Crafting memorable identities that capture your brand's true essence and build instant recognition.",
+  },
+  {
+    title: "Creative Strategy",
+    copy: "Sharp market positioning, launch systems, and campaign ideas built around one magnetic thesis.",
+  },
+  {
+    title: "AI Products",
+    copy: "Useful AI interfaces, workflows, and product concepts shaped for adoption instead of novelty.",
+  },
+  {
+    title: "Web Experiences",
+    copy: "High-impact sites with cinematic motion, crisp messaging, and paths that feel inevitable.",
+  },
+  {
+    title: "Growth Marketing",
+    copy: "Performance systems, content engines, and experiments that compound attention into demand.",
+  },
+  {
+    title: "Automation Systems",
+    copy: "Operational flows that remove friction, connect teams, and keep the business moving faster.",
+  },
 ];
 
 const process = [
@@ -68,23 +89,66 @@ const testimonials = [
 
 export function Hero() {
   const ref = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start start", "end start"],
-  });
-  // Text/typography fades tied to the cinematic
-  const introOpacity = useTransform(scrollYProgress, [0, 0.15, 0.3], [1, 1, 0]);
-  const introY = useTransform(scrollYProgress, [0, 0.3], ["0vh", "-6vh"]);
-  const midOpacity = useTransform(scrollYProgress, [0.35, 0.55, 0.75], [0, 1, 0]);
-  const outroOpacity = useTransform(scrollYProgress, [0.75, 0.9, 1], [0, 1, 1]);
-  const outroY = useTransform(scrollYProgress, [0.75, 1], ["6vh", "0vh"]);
+  const introRef = useRef<HTMLDivElement>(null);
+  const midRef = useRef<HTMLDivElement>(null);
+  const outroRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let raf = 0;
+    let active = false;
+    const applyScene = (node: HTMLDivElement | null, opacity: number, yVh = 0) => {
+      if (!node) return;
+      node.style.opacity = opacity.toFixed(3);
+      node.style.transform = `translate3d(0, ${yVh.toFixed(3)}vh, 0)`;
+    };
+    const tick = () => {
+      if (!active) return;
+      const p = getHeroProgress();
+      const intro = 1 - smoothstep(0.2, 0.36, p);
+      const introY = -6 * smoothstep(0, 0.36, p);
+      const mid = smoothstep(0.28, 0.4, p) * (1 - smoothstep(0.5, 0.62, p));
+      const outro = 0.85 * smoothstep(0.56, 0.66, p) * (1 - smoothstep(0.72, 0.82, p));
+      const outroY = 4 * (1 - smoothstep(0.56, 0.72, p));
+
+      applyScene(introRef.current, intro, introY);
+      applyScene(midRef.current, mid);
+      applyScene(outroRef.current, outro, outroY);
+      raf = requestAnimationFrame(tick);
+    };
+
+    const start = () => {
+      if (active) return;
+      active = true;
+      raf = requestAnimationFrame(tick);
+    };
+    const stop = () => {
+      active = false;
+      cancelAnimationFrame(raf);
+    };
+    const observer = new IntersectionObserver(
+      ([entry]) => (entry.isIntersecting ? start() : stop()),
+      { rootMargin: "20% 0px" },
+    );
+    if (ref.current) observer.observe(ref.current);
+    start();
+
+    return () => {
+      stop();
+      observer.disconnect();
+    };
+  }, []);
 
   return (
     <section ref={ref} id="top" className="relative h-[300vh]">
       <div className="sticky top-0 h-screen w-full overflow-hidden">
         {/* Scene 1 — Silence. A single word. */}
         <motion.div
-          style={{ opacity: introOpacity, y: introY }}
+          ref={introRef}
+          style={{
+            opacity: 1,
+            transform: "translate3d(0, 0vh, 0)",
+            willChange: "opacity, transform",
+          }}
           className="pointer-events-none absolute inset-x-0 top-[12vh] flex flex-col items-center gap-6 text-center"
         >
           <div className="font-label text-[color:var(--midnight)]/60">
@@ -106,7 +170,8 @@ export function Hero() {
 
         {/* Scene 2 — Camera enters violet space */}
         <motion.div
-          style={{ opacity: midOpacity }}
+          ref={midRef}
+          style={{ opacity: 0, transform: "translate3d(0, 0vh, 0)", willChange: "opacity" }}
           className="pointer-events-none absolute inset-x-0 bottom-[18vh] flex justify-center"
         >
           <div
@@ -122,7 +187,12 @@ export function Hero() {
 
         {/* Scene 3 — Arrival */}
         <motion.div
-          style={{ opacity: outroOpacity, y: outroY }}
+          ref={outroRef}
+          style={{
+            opacity: 0,
+            transform: "translate3d(0, 4vh, 0)",
+            willChange: "opacity, transform",
+          }}
           className="pointer-events-none absolute inset-x-0 bottom-[10vh] flex flex-col items-center gap-8"
         >
           <div className="font-label text-white/60">welcome to the universe of</div>
@@ -145,41 +215,111 @@ export function Hero() {
 
 export function Philosophy() {
   return (
-    <section className="relative z-10 overflow-hidden bg-white py-[14vh]">
-      <img
-        src="/velvet-philosophy-asset.png"
-        alt="We craft brands that capture attention and drive growth"
-        className="mx-auto w-full max-w-[1920px]"
+    <LiquidTextMaskSection
+      lines={["WE CRAFT BRANDS", "THAT CAPTURE", "ATTENTION & DRIVE", "GROWTH"]}
+      blobColor="#5b21b6"
+    />
+  );
+}
+
+export function QuoteSection() {
+  const ref = useRef<HTMLElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ["start end", "end start"],
+  });
+  const contentOpacity = useTransform(scrollYProgress, [0, 0.16, 0.76, 1], [0, 1, 1, 0]);
+  const contentY = useTransform(scrollYProgress, [0, 0.2, 0.74, 1], ["8vh", "0vh", "0vh", "-7vh"]);
+  const ambientOpacity = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [0, 0.82, 0.82, 0]);
+  const orbitY = useTransform(scrollYProgress, [0, 1], ["7vh", "-9vh"]);
+
+  return (
+    <section ref={ref} className="brand-quote-section relative z-10 overflow-hidden">
+      <motion.div
+        style={{ opacity: ambientOpacity }}
+        className="brand-quote-stars pointer-events-none absolute inset-0"
       />
+      <motion.div
+        style={{ opacity: ambientOpacity, y: orbitY }}
+        className="brand-quote-orbit pointer-events-none absolute h-[58vmin] w-[58vmin]"
+      />
+      <div className="relative mx-auto flex min-h-screen max-w-[1800px] flex-col justify-center px-6 py-[18vh] md:px-16">
+        <motion.div style={{ opacity: contentOpacity, y: contentY }}>
+          <blockquote className="brand-quote">
+            <span>BEING</span>
+            <span>UNFORGETTABLE</span>
+            <span>IS NOT LUCK.</span>
+          </blockquote>
+          <p className="mt-10 max-w-2xl font-serif-italic text-2xl leading-tight text-white/72 md:ml-auto md:text-4xl">
+            It is designed into every frame until memory has nowhere else to go.
+          </p>
+        </motion.div>
+      </div>
     </section>
   );
 }
 
+type DisciplinePointerEvent = PointerEvent<HTMLLIElement>;
+
+function setDisciplineSplit(event: DisciplinePointerEvent) {
+  const rect = event.currentTarget.getBoundingClientRect();
+  const y = ((event.clientY - rect.top) / rect.height) * 100;
+  const split = Math.min(76, Math.max(24, y));
+  event.currentTarget.style.setProperty("--split", `${split.toFixed(2)}%`);
+  event.currentTarget.dataset.hovered = "true";
+}
+
+function resetDisciplineSplit(event: DisciplinePointerEvent) {
+  event.currentTarget.style.setProperty("--split", "52%");
+  event.currentTarget.dataset.hovered = "false";
+}
+
 export function Services() {
   return (
-    <section id="services" className="relative z-10 py-[22vh]">
-      <div className="mx-auto max-w-[1600px] px-6 md:px-16">
-        <div className="font-label mb-16 text-white/40">— chapter ii · disciplines</div>
-        <ul className="divide-y divide-white/10 border-y border-white/10">
+    <section
+      id="services"
+      className="disciplines-stage relative z-10 overflow-hidden py-[9vh] md:py-[12vh]"
+    >
+      <div className="disciplines-ambient pointer-events-none absolute inset-0" />
+      <div className="disciplines-starfield pointer-events-none absolute inset-0 opacity-90" />
+      <div className="disciplines-planet pointer-events-none absolute right-[8vw] top-1/2 hidden h-[74vmin] w-[74vmin] -translate-y-[43%] md:block" />
+
+      <div className="relative mx-auto flex max-w-[1920px] items-center justify-end px-6 pb-12 md:px-16">
+        <div className="font-label text-[#8d55ff]">— chapter ii • our disciplines</div>
+        <div className="font-label hidden text-[#a875ff] md:block">velvet marketing</div>
+      </div>
+
+      <div className="relative">
+        <ul className="disciplines-list border-y border-[#7c31ff]/55">
           {services.map((s, i) => (
             <motion.li
-              key={s}
+              key={s.title}
               initial={{ opacity: 0, x: -30 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true, margin: "-10%" }}
               transition={{ duration: 0.9, delay: i * 0.05, ease: [0.22, 1, 0.36, 1] as const }}
-              className="group flex items-baseline justify-between py-8 md:py-10"
+              className="discipline-row group relative overflow-hidden border-b border-[#7c31ff]/45 last:border-b-0"
+              onPointerEnter={setDisciplineSplit}
+              onPointerMove={setDisciplineSplit}
+              onPointerLeave={resetDisciplineSplit}
             >
-              <div className="flex items-baseline gap-6 md:gap-10">
-                <span className="font-label text-white/40">{String(i + 1).padStart(2, "0")}</span>
-                <span
-                  className="font-display text-white transition group-hover:text-[color:var(--lavender)] group-hover:italic"
-                  style={{ fontSize: "clamp(2rem, 5vw, 4.5rem)", letterSpacing: "-0.03em" }}
+              <div className="discipline-fill discipline-fill-top" />
+              <div className="discipline-fill discipline-fill-bottom" />
+              <div className="discipline-axis" />
+              <div className="discipline-content relative grid min-h-[128px] items-center gap-5 px-6 py-6 md:grid-cols-[minmax(0,1fr)_minmax(280px,0.42fr)_72px] md:px-16 lg:min-h-[160px]">
+                <h2 className="discipline-title">{s.title}</h2>
+                <p className="discipline-copy max-w-[41ch] text-sm font-medium leading-tight md:text-lg">
+                  {s.copy}
+                </p>
+                <a
+                  data-magnetic
+                  href="#contact"
+                  aria-label={`Start ${s.title}`}
+                  className="discipline-arrow justify-self-start md:justify-self-end"
                 >
-                  {s}
-                </span>
+                  <span>→</span>
+                </a>
               </div>
-              <span className="font-label hidden text-white/40 md:block">→</span>
             </motion.li>
           ))}
         </ul>
@@ -187,20 +327,39 @@ export function Services() {
     </section>
   );
 }
-
 export function Projects() {
+  const ref = useRef<HTMLElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ["start end", "start start"],
+  });
+  const introOpacity = useTransform(scrollYProgress, [0, 0.25, 1], [0, 0.55, 1]);
+  const introY = useTransform(scrollYProgress, [0, 1], ["10vh", "0vh"]);
+
   return (
-    <section id="work" className="relative z-10">
-      <div className="mx-auto max-w-[1600px] px-6 py-[22vh] md:px-16">
-        <div className="font-label mb-10 text-white/40">— chapter iii · selected work</div>
-        <h2
-          className="font-serif-italic text-white"
-          style={{ fontSize: "clamp(2.5rem, 7vw, 7rem)", lineHeight: 1, letterSpacing: "-0.02em" }}
+    <section ref={ref} id="work" className="projects-stage relative z-10">
+      <div className="projects-intro relative flex min-h-screen items-center overflow-hidden">
+        <motion.div
+          style={{ opacity: introOpacity, y: introY }}
+          className="mx-auto w-full max-w-[1800px] px-6 py-[18vh] md:px-16"
         >
-          five worlds
-          <br />
-          we have built.
-        </h2>
+          <div className="projects-kicker font-label mb-[8vh] flex items-center justify-between text-white/55">
+            <span>selected worlds</span>
+            <span>01 — 05</span>
+          </div>
+          <h2 className="projects-intro-title" aria-label="Five worlds we have built">
+            <span className="projects-intro-solid">FIVE</span>
+            <span className="projects-intro-outline">WORLDS</span>
+          </h2>
+          <p className="projects-intro-script font-serif-italic">we have built.</p>
+          <div className="projects-world-index font-label mt-[8vh] grid grid-cols-2 gap-y-4 text-white/45 md:grid-cols-5">
+            {projects.map((project, index) => (
+              <span key={project.name}>
+                {String(index + 1).padStart(2, "0")} / {project.name}
+              </span>
+            ))}
+          </div>
+        </motion.div>
       </div>
       <div>
         {projects.map((p, i) => (
@@ -212,21 +371,15 @@ export function Projects() {
 }
 
 function ProjectRow({ p, i }: { p: (typeof projects)[number]; i: number }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start end", "end start"],
-  });
-  const y = useTransform(scrollYProgress, [0, 1], ["12%", "-12%"]);
   return (
-    <motion.div
-      ref={ref}
-      className={`relative flex min-h-screen items-center overflow-hidden border-t border-white/5`}
-    >
-      <motion.div
-        style={{ y }}
-        className="pointer-events-none absolute -right-40 top-1/2 h-[70vmin] w-[70vmin] -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_30%_30%,#a78bfa,#4c1d95_50%,transparent_75%)] opacity-25 blur-3xl"
+    <div className="project-row relative flex min-h-screen items-center overflow-hidden">
+      <div
+        className={`project-row-tone pointer-events-none absolute inset-0 bg-gradient-to-br ${p.tint}`}
       />
+      <div className="project-row-ambient pointer-events-none absolute inset-[-14%]" />
+      <div className="project-row-index pointer-events-none absolute right-[4vw] top-[8vh] font-display text-white/[0.045]">
+        {String(i + 1).padStart(2, "0")}
+      </div>
       <div className="relative z-10 mx-auto grid w-full max-w-[1800px] items-end gap-y-16 px-6 py-[18vh] md:grid-cols-12 md:px-16">
         <div className="md:col-span-7">
           <div className="font-label mb-8 text-white/40">
@@ -257,7 +410,7 @@ function ProjectRow({ p, i }: { p: (typeof projects)[number]; i: number }) {
           </a>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -444,8 +597,7 @@ export function HeroProgressBridge({
   const { scrollY } = useScroll();
   useMotionValueEvent(scrollY, "change", (y) => {
     if (typeof window === "undefined") return;
-    const heroHeight = window.innerHeight * 3;
-    progressRef.current = Math.min(1, Math.max(0, y / heroHeight));
+    progressRef.current = getHeroProgressFromScroll(y);
   });
   return null;
 }

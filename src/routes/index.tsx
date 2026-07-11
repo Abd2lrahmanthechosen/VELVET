@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Cursor } from "@/components/velvet/Cursor";
 import { Loader } from "@/components/velvet/Loader";
 import { Nav } from "@/components/velvet/Nav";
 import { useLenis } from "@/components/velvet/useLenis";
@@ -12,6 +11,7 @@ import {
   Philosophy,
   Process,
   Projects,
+  QuoteSection,
   Results,
   Services,
   Testimonials,
@@ -28,21 +28,20 @@ function Index() {
   const scrollProgress = useRef(0);
 
   return (
-    <main className="relative min-h-screen text-white" style={{ background: "#0a0616" }}>
+    <main className="velvet-site-bg relative min-h-screen text-white">
       {mounted && <Loader />}
-      {mounted && <Cursor />}
       <Nav />
       {mounted && <HeroProgressBridge progressRef={scrollProgress} />}
 
-      {/* Fixed sphere layer — behind hero */}
-      <div className="pointer-events-none fixed inset-0 z-0">
-        <VelvetSphere scrollProgress={scrollProgress} />
-      </div>
+      <VelvetSphere scrollProgress={scrollProgress} />
 
       <div className="relative z-10">
         <Hero />
+        <div className="dark-story-flow relative">
+          <QuoteSection />
+          <Services />
+        </div>
         <Philosophy />
-        <Services />
         <Projects />
         <Process />
         <Results />

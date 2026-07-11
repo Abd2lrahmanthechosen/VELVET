@@ -17,14 +17,23 @@ export function Cursor() {
     let px = tx;
     let py = ty;
     let hovering = false;
+    let hidden = false;
+    let lastMoveAt = performance.now();
+    let raf = 0;
+    let running = false;
 
     const onMove = (e: MouseEvent) => {
       tx = e.clientX;
       ty = e.clientY;
+      hidden = !!(e.target as HTMLElement | null)?.closest("[data-hide-custom-cursor]");
+      lastMoveAt = performance.now();
+      startLoop();
     };
     const onOver = (e: MouseEvent) => {
       const t = e.target as HTMLElement;
       hovering = !!t.closest("a, button, [data-magnetic]");
+      hidden = !!t.closest("[data-hide-custom-cursor]");
+      startLoop();
     };
 
     const particles: HTMLDivElement[] = [];
@@ -57,16 +66,18 @@ export function Cursor() {
       const stretch = 1 + speed / 40;
       const squish = 1 / Math.sqrt(stretch);
       const scale = hovering ? 2.6 : 1;
+      const cursorOpacity = hidden ? "0" : "1";
 
       if (orb.current) {
         orb.current.style.transform = `translate3d(${x - 9}px, ${y - 9}px, 0) rotate(${angle}deg) scale(${stretch * scale}, ${squish * scale})`;
+        orb.current.style.opacity = cursorOpacity;
       }
       if (halo.current) {
         halo.current.style.transform = `translate3d(${x - 26}px, ${y - 26}px, 0) scale(${hovering ? 1.4 : 1})`;
-        halo.current.style.opacity = hovering ? "0.9" : "0.35";
+        halo.current.style.opacity = hidden ? "0" : hovering ? "0.9" : "0.35";
       }
       // shed particles when moving fast
-      if (speed > 6 && particles[pi]) {
+      if (!hidden && speed > 6 && particles[pi]) {
         const el = particles[pi];
         el.style.transform = `translate3d(${x - 3}px, ${y - 3}px, 0)`;
         el.style.opacity = "1";
@@ -77,9 +88,20 @@ export function Cursor() {
         });
         pi = (pi + 1) % pool;
       }
-      requestAnimationFrame(tick);
+      const stillSettling = Math.abs(tx - x) + Math.abs(ty - y) > 0.2;
+      if (stillSettling || now - lastMoveAt < 140) {
+        raf = requestAnimationFrame(tick);
+      } else {
+        running = false;
+      }
     };
-    const raf = requestAnimationFrame(tick);
+
+    const startLoop = () => {
+      if (running) return;
+      running = true;
+      last = performance.now();
+      raf = requestAnimationFrame(tick);
+    };
 
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseover", onOver);

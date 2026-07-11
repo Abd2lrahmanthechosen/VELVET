@@ -220,13 +220,24 @@
 }
 
 .velvet-site-bg {
+  position: relative;
+  isolation: isolate;
+  background-color: #05020d;
+}
+
+.velvet-site-bg::before {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
   background:
     radial-gradient(circle at 12% 6%, rgba(116, 50, 224, 0.46), transparent 34rem),
     radial-gradient(circle at 78% 20%, rgba(132, 67, 255, 0.24), transparent 40rem),
     radial-gradient(circle at 50% 72%, rgba(68, 28, 135, 0.28), transparent 46rem),
     linear-gradient(180deg, #30165d 0%, #251042 32%, #130925 66%, #05020d 100%);
-  background-attachment: fixed;
-  background-color: #05020d;
+  contain: strict;
+  content: "";
+  pointer-events: none;
+  transform: translateZ(0);
 }
 
 .dark-story-flow {
@@ -465,9 +476,17 @@
 }
 
 .project-row {
+  contain: layout paint style;
   content-visibility: auto;
   contain-intrinsic-size: auto 100vh;
   isolation: isolate;
+  overflow: clip;
+}
+
+.project-row-tone,
+.project-row::before {
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 .project-row-tone {
@@ -480,30 +499,25 @@
 .project-row::before {
   position: absolute;
   inset: 0;
-  z-index: 0;
+  z-index: 1;
   background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+    radial-gradient(ellipse at 91% 40%, rgba(196, 181, 253, 0.224), transparent 54%),
+    linear-gradient(118deg, transparent 29%, rgba(124, 58, 237, 0.144) 60%, transparent 83%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.019) 1px, transparent 1px),
+    linear-gradient(rgba(255, 255, 255, 0.014) 1px, transparent 1px);
   background-size:
+    100% 100%,
+    100% 100%,
     12.5% 100%,
     100% 25%;
   content: "";
-  opacity: 0.55;
   pointer-events: none;
   -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent);
   mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent);
 }
 
-.project-row-ambient {
-  background:
-    radial-gradient(ellipse at 82% 42%, rgba(196, 181, 253, 0.28), transparent 42%),
-    linear-gradient(118deg, transparent 34%, rgba(124, 58, 237, 0.18) 58%, transparent 76%);
-  opacity: 0.8;
-  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 16%, #000 84%, transparent);
-  mask-image: linear-gradient(to bottom, transparent, #000 16%, #000 84%, transparent);
-}
-
 .project-row-index {
+  z-index: 2;
   font-size: 9rem;
   letter-spacing: 0;
   line-height: 0.8;

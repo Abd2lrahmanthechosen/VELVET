@@ -376,7 +376,6 @@ function ProjectRow({ p, i }: { p: (typeof projects)[number]; i: number }) {
       <div
         className={`project-row-tone pointer-events-none absolute inset-0 bg-gradient-to-br ${p.tint}`}
       />
-      <div className="project-row-ambient pointer-events-none absolute inset-[-14%]" />
       <div className="project-row-index pointer-events-none absolute right-[4vw] top-[8vh] font-display text-white/[0.045]">
         {String(i + 1).padStart(2, "0")}
       </div>

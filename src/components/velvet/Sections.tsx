@@ -430,7 +430,7 @@ export function Process() {
   });
   const x = useTransform(scrollYProgress, [0, 1], ["0%", "-80%"]);
   return (
-    <section id="process" ref={ref} className="relative z-10 h-[400vh]">
+    <section id="process" ref={ref} className="relative z-10 h-[650vh]">
       <div className="sticky top-0 flex h-screen flex-col justify-center overflow-hidden">
         <div className="mx-auto mb-20 w-full max-w-[1600px] px-6 md:px-16">
           <div className="font-label mb-6 text-white/40">— chapter iv · the sequence</div>

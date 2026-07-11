@@ -7,30 +7,40 @@ import { LiquidTextMaskSection } from "./LiquidTextMaskSection";
 const projects = [
   {
     name: "VETTA",
+    logo: "/brands/vetta.png",
+    logoClass: "project-logo--vertical",
     kind: "Software Company",
     line: "Elegant, floating interfaces for a modern software house.",
     tint: "from-[#4c1d95] via-[#1e1b4b] to-[#0a0616]",
   },
   {
     name: "NUMO",
+    logo: "/brands/numo.png",
+    logoClass: "project-logo--numo",
     kind: "AI Operating System",
     line: "Executive dashboards and an AI cofounder for founders who scale.",
     tint: "from-[#312e81] via-[#1e1b4b] to-[#0a0616]",
   },
   {
     name: "NOK",
+    logo: "/brands/nok.png",
+    logoClass: "project-logo--nok",
     kind: "AI Hiring SaaS",
     line: "Neural pipelines that read résumés like a senior recruiter.",
     tint: "from-[#4c1d95] via-[#2d1b69] to-[#0a0616]",
   },
   {
     name: "PERRERO",
+    logo: "/brands/perrero.png",
+    logoClass: "project-logo--wide",
     kind: "Enterprise Analytics",
     line: "Executive-grade data visualization with a luxury dark aesthetic.",
     tint: "from-[#1e1b4b] via-[#0f172a] to-[#0a0616]",
   },
   {
     name: "LAM3A",
+    logo: "/brands/lam3a.png",
+    logoClass: "project-logo--wide project-logo--lam3a",
     kind: "Luxury Mobile Car Care",
     line: "Reflections, foam, and the deepest black we've ever shipped.",
     tint: "from-[#0a0616] via-[#0b0b1a] to-[#000]",
@@ -384,15 +394,14 @@ function ProjectRow({ p, i }: { p: (typeof projects)[number]; i: number }) {
           <div className="font-label mb-8 text-white/40">
             {String(i + 1).padStart(2, "0")} · {p.kind}
           </div>
-          <h3
-            className="font-display text-white"
-            style={{
-              fontSize: "clamp(4rem, 14vw, 16rem)",
-              lineHeight: 0.85,
-              letterSpacing: "-0.05em",
-            }}
-          >
-            {p.name}
+          <h3 className="project-logo-heading">
+            <img
+              src={p.logo}
+              alt={`${p.name} logo`}
+              loading="lazy"
+              decoding="async"
+              className={`project-logo ${p.logoClass}`}
+            />
           </h3>
         </div>
         <div className="md:col-span-4 md:col-start-9">

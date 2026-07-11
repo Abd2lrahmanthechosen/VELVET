@@ -465,6 +465,8 @@
 }
 
 .project-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 100vh;
   isolation: isolate;
 }
 

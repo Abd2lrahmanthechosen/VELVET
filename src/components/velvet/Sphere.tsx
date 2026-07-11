@@ -8,7 +8,7 @@ function Planet({ scrollProgress }: { scrollProgress: React.RefObject<number> })
   const group = useRef<THREE.Group>(null);
   const inner = useRef<THREE.Mesh>(null);
   const mouse = useRef({ x: 0, y: 0 });
-  const { camera, viewport } = useThree();
+  const { camera, viewport, size } = useThree();
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
@@ -36,10 +36,11 @@ function Planet({ scrollProgress }: { scrollProgress: React.RefObject<number> })
     const heroScale = 1.55 - smoothstep(0.05, 0.78, p) * 0.9;
     const currentViewport = viewport.getCurrentViewport(camera, [0, 0, 0]);
     const isCompact = currentViewport.width < 6;
-    const miniScale = isCompact ? 0.14 : 0.165;
-    const miniX = -currentViewport.width / 2 + (isCompact ? 0.62 : 0.88);
-    const miniY = currentViewport.height / 2 - (isCompact ? 0.62 : 0.82);
-    const scale = THREE.MathUtils.lerp(heroScale, miniScale, miniHandoff);
+    const miniCanvas = p >= 0.96 && size.width < 500;
+    const miniScale = miniCanvas ? 0.62 : isCompact ? 0.14 : 0.165;
+    const miniX = miniCanvas ? 0 : -currentViewport.width / 2 + (isCompact ? 0.62 : 0.88);
+    const miniY = miniCanvas ? 0 : currentViewport.height / 2 - (isCompact ? 0.62 : 0.82);
+    const scale = miniCanvas ? miniScale : THREE.MathUtils.lerp(heroScale, miniScale, miniHandoff);
     group.current.position.x = THREE.MathUtils.lerp(0, miniX, miniHandoff);
     group.current.position.y = THREE.MathUtils.lerp(lift, miniY, miniHandoff);
     group.current.scale.setScalar(Math.max(0.05, scale));
@@ -56,7 +57,7 @@ function Planet({ scrollProgress }: { scrollProgress: React.RefObject<number> })
       <Float speed={1.2} rotationIntensity={0.15} floatIntensity={0.4}>
         {/* Core sphere — physical, glossy */}
         <mesh>
-          <sphereGeometry args={[1.6, 64, 64]} />
+          <sphereGeometry args={[1.6, 48, 48]} />
           <meshPhysicalMaterial
             color="#7c3aed"
             metalness={0.35}
@@ -71,7 +72,7 @@ function Planet({ scrollProgress }: { scrollProgress: React.RefObject<number> })
         </mesh>
         {/* Inner glow halo */}
         <mesh ref={inner} scale={1.08}>
-          <sphereGeometry args={[1.6, 32, 32]} />
+          <sphereGeometry args={[1.6, 24, 24]} />
           <meshBasicMaterial color="#a78bfa" transparent opacity={0.15} side={THREE.BackSide} />
         </mesh>
         {/* Orbiting particles */}
@@ -110,13 +111,7 @@ function Orbits() {
           itemSize={3}
         />
       </bufferGeometry>
-      <pointsMaterial
-        color="#c4b5fd"
-        size={0.025}
-        sizeAttenuation
-        transparent
-        opacity={0.85}
-      />
+      <pointsMaterial color="#c4b5fd" size={0.025} sizeAttenuation transparent opacity={0.85} />
     </points>
   );
 }
@@ -186,8 +181,7 @@ function hasWebGL() {
 function Fallback({ scrollProgress }: { scrollProgress: React.RefObject<number> }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    let raf = 0;
-    const tick = () => {
+    const update = () => {
       const p = getHeroProgress(scrollProgress.current ?? 0);
       if (ref.current) {
         const scale = 1 - Math.pow(p, 1.2) * 0.75;
@@ -203,13 +197,20 @@ function Fallback({ scrollProgress }: { scrollProgress: React.RefObject<number> 
           wrap.style.background = bg;
         }
       }
-      raf = requestAnimationFrame(tick);
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
   }, [scrollProgress]);
   return (
-    <div className="pointer-events-none absolute inset-0 flex items-center justify-center transition-colors" style={{ background: "oklch(0.94 0.03 300)" }}>
+    <div
+      className="pointer-events-none absolute inset-0 flex items-center justify-center transition-colors"
+      style={{ background: "oklch(0.94 0.03 300)" }}
+    >
       <div
         ref={ref}
         className="h-[70vmin] w-[70vmin] rounded-full"
@@ -225,11 +226,7 @@ function Fallback({ scrollProgress }: { scrollProgress: React.RefObject<number> 
   );
 }
 
-export function VelvetSphere({
-  scrollProgress,
-}: {
-  scrollProgress: React.RefObject<number>;
-}) {
+export function VelvetSphere({ scrollProgress }: { scrollProgress: React.RefObject<number> }) {
   const layer = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
   const [webglOk, setWebglOk] = useState(true);
@@ -240,19 +237,39 @@ export function VelvetSphere({
   }, []);
 
   useEffect(() => {
-    let raf = 0;
-    const tick = () => {
+    let compact = false;
+    const update = () => {
       const p = getHeroProgress(scrollProgress.current ?? 0);
       if (layer.current) {
         const overlay = p >= 0.96;
+        const nextCompact = overlay && webglOk;
         layer.current.style.zIndex = overlay ? "40" : "0";
         layer.current.dataset.overlay = overlay ? "true" : "false";
+        if (nextCompact !== compact) {
+          compact = nextCompact;
+          layer.current.dataset.compact = compact ? "true" : "false";
+          if (compact) {
+            layer.current.style.inset = "auto";
+            layer.current.style.left = "-20px";
+            layer.current.style.top = "-30px";
+            layer.current.style.width = "260px";
+            layer.current.style.height = "260px";
+          } else {
+            layer.current.style.inset = "0";
+            layer.current.style.width = "auto";
+            layer.current.style.height = "auto";
+          }
+        }
       }
-      raf = requestAnimationFrame(tick);
     };
-    tick();
-    return () => cancelAnimationFrame(raf);
-  }, [scrollProgress]);
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, [scrollProgress, webglOk]);
 
   return (
     <div
@@ -266,7 +283,7 @@ export function VelvetSphere({
       ) : (
         <Canvas
           frameloop="always"
-          dpr={[1, 1.5]}
+          dpr={[1, 1.15]}
           gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
           camera={{ position: [0, 0, 5], fov: 42 }}
           onCreated={({ gl }) => {

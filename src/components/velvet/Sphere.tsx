@@ -1,30 +1,21 @@
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Float } from "@react-three/drei";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { MutableRefObject } from "react";
 import * as THREE from "three";
 import { getHeroProgress, smoothstep } from "./heroTimeline";
 
 const HANDOFF_COMPLETE = 0.96;
 const COMPACT_ENTER = 0.985;
-const COMPACT_EXIT = 0.93;
+const COMPACT_EXIT = 0.94;
 const COMPACT_SIZE = 260;
 const COMPACT_LEFT = -20;
 const COMPACT_TOP = -30;
 
-type CompactModeRef = MutableRefObject<boolean>;
-
-function Planet({
-  scrollProgress,
-  compactMode,
-}: {
-  scrollProgress: React.RefObject<number>;
-  compactMode: CompactModeRef;
-}) {
+function Planet({ scrollProgress }: { scrollProgress: React.RefObject<number> }) {
   const group = useRef<THREE.Group>(null);
   const inner = useRef<THREE.Mesh>(null);
   const mouse = useRef({ x: 0, y: 0 });
-  const { camera, viewport } = useThree();
+  const { camera, gl } = useThree();
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
@@ -50,22 +41,20 @@ function Planet({
     const lift = Math.pow(p, 1.35) * 2.65;
     const miniHandoff = smoothstep(0.8, HANDOFF_COMPLETE, p);
     const heroScale = 1.55 - smoothstep(0.05, 0.78, p) * 0.9;
-    const currentViewport = viewport.getCurrentViewport(camera, [0, 0, 0]);
-    const compact = compactMode.current;
-    const fullHeight = Math.max(1, window.innerHeight);
     const compactScale = 0.62;
-    const fullMiniScale = (compactScale * COMPACT_SIZE) / fullHeight;
     const targetX = COMPACT_LEFT + COMPACT_SIZE / 2;
     const targetY = COMPACT_TOP + COMPACT_SIZE / 2;
-    const miniX = compact
-      ? 0
-      : -currentViewport.width / 2 + (currentViewport.height * targetX) / fullHeight;
-    const miniY = compact
-      ? 0
-      : currentViewport.height / 2 - (currentViewport.height * targetY) / fullHeight;
-    const scale = compact
-      ? compactScale
-      : THREE.MathUtils.lerp(heroScale, fullMiniScale, miniHandoff);
+    // Project the minimized target through the fixed canvas. Keeping one viewport through the
+    // handoff prevents a renderer resize from producing a dropped or incorrectly scaled frame.
+    const canvasW = gl.domElement.clientWidth || window.innerWidth;
+    const canvasH = gl.domElement.clientHeight || Math.max(1, window.innerHeight);
+    const fullMiniScale = (compactScale * COMPACT_SIZE) / canvasH;
+    const fov = (camera as THREE.PerspectiveCamera).fov;
+    const vpH = 2 * camera.position.z * Math.tan((fov * Math.PI) / 360);
+    const vpW = vpH * (canvasW / canvasH);
+    const miniX = -vpW / 2 + (vpH * targetX) / canvasH;
+    const miniY = vpH / 2 - (vpH * targetY) / canvasH;
+    const scale = THREE.MathUtils.lerp(heroScale, fullMiniScale, miniHandoff);
     group.current.position.x = THREE.MathUtils.lerp(0, miniX, miniHandoff);
     group.current.position.y = THREE.MathUtils.lerp(lift, miniY, miniHandoff);
     group.current.scale.setScalar(Math.max(0.05, scale));
@@ -141,13 +130,7 @@ function Orbits() {
   );
 }
 
-function Scene({
-  scrollProgress,
-  compactMode,
-}: {
-  scrollProgress: React.RefObject<number>;
-  compactMode: CompactModeRef;
-}) {
+function Scene({ scrollProgress }: { scrollProgress: React.RefObject<number> }) {
   const dir = useRef<THREE.DirectionalLight>(null);
   const amb = useRef<THREE.AmbientLight>(null);
   const three = useThree();
@@ -156,10 +139,11 @@ function Scene({
   const cDeep = useMemo(() => new THREE.Color("#0a0616"), []);
   const bgColor = useMemo(() => new THREE.Color("#ece4f7"), []);
   const tmp = useMemo(() => new THREE.Color(), []);
+  const drawingBufferSize = useMemo(() => new THREE.Vector2(), []);
   const fog = useMemo(() => new THREE.Fog("#ece4f7", 6, 22), []);
 
   useEffect(() => {
-    three.scene.background = bgColor;
+    three.scene.background = null;
     three.scene.fog = fog;
     three.gl.setClearColor(bgColor, 1);
   }, [three, bgColor, fog]);
@@ -168,18 +152,30 @@ function Scene({
     const p = getHeroProgress(scrollProgress.current ?? 0);
     // Go transparent at the same point the layer lifts above the content (p >= 0.96), so the
     // sphere hands off cleanly — only the mini sphere shows on top, never a full-screen cover.
-    if (p < HANDOFF_COMPLETE && !compactMode.current) {
-      if (p < 0.5) tmp.copy(cLight).lerp(cMid, p / 0.5);
-      else tmp.copy(cMid).lerp(cDeep, (p - 0.5) / 0.5);
-      bgColor.lerp(tmp, 0.08);
-      three.scene.background = bgColor;
-      three.scene.fog = fog;
-      fog.color.copy(bgColor);
-      three.gl.setClearColor(bgColor, 1);
-    } else if (three.scene.background !== null) {
-      three.scene.background = null;
-      three.scene.fog = null;
-      three.gl.setClearColor(0x000000, 0);
+    if (p < 0.5) tmp.copy(cLight).lerp(cMid, p / 0.5);
+    else tmp.copy(cMid).lerp(cDeep, (p - 0.5) / 0.5);
+    bgColor.copy(tmp);
+    const backgroundAlpha = 1 - smoothstep(0.88, HANDOFF_COMPLETE, p);
+    three.scene.background = null;
+    three.scene.fog = backgroundAlpha > 0.001 ? fog : null;
+    fog.color.copy(bgColor);
+    three.gl.setClearColor(bgColor, backgroundAlpha);
+
+    // Keep the renderer dimensions stable, but limit post-handoff drawing to the visible
+    // top-left region. This retains the cheap compact render without reallocating the canvas.
+    if (p >= COMPACT_ENTER) {
+      const pixelRatio = three.gl.getPixelRatio();
+      three.gl.getDrawingBufferSize(drawingBufferSize);
+      const compactPixels = Math.ceil(COMPACT_SIZE * pixelRatio);
+      three.gl.setScissorTest(true);
+      three.gl.setScissor(
+        0,
+        Math.max(0, drawingBufferSize.y - compactPixels),
+        compactPixels,
+        compactPixels,
+      );
+    } else {
+      three.gl.setScissorTest(false);
     }
     three.camera.position.z = 5 + p * 2.5;
     if (amb.current) amb.current.intensity = 0.9 - p * 0.55;
@@ -190,7 +186,7 @@ function Scene({
       <ambientLight ref={amb} intensity={0.9} />
       <directionalLight ref={dir} position={[4, 6, 4]} intensity={0.9} color="#ffffff" />
       <pointLight position={[-4, -2, -2]} intensity={2} color="#7c3aed" />
-      <Planet scrollProgress={scrollProgress} compactMode={compactMode} />
+      <Planet scrollProgress={scrollProgress} />
     </>
   );
 }
@@ -260,8 +256,6 @@ function Fallback({ scrollProgress }: { scrollProgress: React.RefObject<number> 
 export function VelvetSphere({ scrollProgress }: { scrollProgress: React.RefObject<number> }) {
   const layer = useRef<HTMLDivElement>(null);
   const compactMode = useRef(false);
-  const resizeRenderer = useRef<((width: number, height: number) => void) | null>(null);
-  const clearRenderer = useRef<(() => void) | null>(null);
   const [mounted, setMounted] = useState(false);
   const [webglOk, setWebglOk] = useState(true);
 
@@ -273,55 +267,38 @@ export function VelvetSphere({ scrollProgress }: { scrollProgress: React.RefObje
   useEffect(() => {
     let compact = compactMode.current;
 
-    const applyLayout = (nextCompact: boolean) => {
+    const applyMode = (nextCompact: boolean) => {
       const node = layer.current;
       if (!node) return;
 
       compact = nextCompact;
       compactMode.current = nextCompact;
       node.dataset.compact = nextCompact ? "true" : "false";
-
-      if (nextCompact) {
-        clearRenderer.current?.();
-        node.style.inset = "auto";
-        node.style.left = `${COMPACT_LEFT}px`;
-        node.style.top = `${COMPACT_TOP}px`;
-        node.style.right = "auto";
-        node.style.bottom = "auto";
-        node.style.width = `${COMPACT_SIZE}px`;
-        node.style.height = `${COMPACT_SIZE}px`;
-        resizeRenderer.current?.(COMPACT_SIZE, COMPACT_SIZE);
-        return;
-      }
-
-      node.style.inset = "0";
-      node.style.width = "auto";
-      node.style.height = "auto";
-      const bounds = node.getBoundingClientRect();
-      resizeRenderer.current?.(
-        bounds.width || window.innerWidth,
-        bounds.height || window.innerHeight,
-      );
     };
 
+    let raf = 0;
     const update = () => {
-      const p = getHeroProgress(scrollProgress.current ?? 0);
-      if (layer.current) {
-        let nextCompact = compact;
-        if (!webglOk || (compact && p <= COMPACT_EXIT)) nextCompact = false;
-        else if (!compact && p >= COMPACT_ENTER) nextCompact = true;
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const p = getHeroProgress(scrollProgress.current ?? 0);
+        if (layer.current) {
+          let nextCompact = compact;
+          if (!webglOk || (compact && p <= COMPACT_EXIT)) nextCompact = false;
+          else if (!compact && p >= COMPACT_ENTER) nextCompact = true;
 
-        if (nextCompact !== compact) applyLayout(nextCompact);
+          if (nextCompact !== compact) applyMode(nextCompact);
 
-        const overlay = webglOk && (compact || p >= HANDOFF_COMPLETE);
-        layer.current.style.zIndex = overlay ? "40" : "0";
-        layer.current.dataset.overlay = overlay ? "true" : "false";
-      }
+          const overlay = webglOk && (compact || p >= HANDOFF_COMPLETE);
+          layer.current.style.zIndex = overlay ? "40" : "0";
+          layer.current.dataset.overlay = overlay ? "true" : "false";
+        }
+      });
     };
     update();
     window.addEventListener("scroll", update, { passive: true });
     window.addEventListener("resize", update);
     return () => {
+      cancelAnimationFrame(raf);
       window.removeEventListener("scroll", update);
       window.removeEventListener("resize", update);
     };
@@ -342,15 +319,7 @@ export function VelvetSphere({ scrollProgress }: { scrollProgress: React.RefObje
           dpr={[1, 1.15]}
           gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
           camera={{ position: [0, 0, 5], fov: 42 }}
-          onCreated={({ gl, scene, setSize }) => {
-            resizeRenderer.current = (width, height) => setSize(width, height, 0, 0);
-            clearRenderer.current = () => {
-              scene.background = null;
-              scene.fog = null;
-              gl.setClearColor(0x000000, 0);
-              gl.clear(true, true, true);
-            };
-            if (compactMode.current) setSize(COMPACT_SIZE, COMPACT_SIZE, 0, 0);
+          onCreated={({ gl }) => {
             gl.domElement.addEventListener("webglcontextlost", (e) => {
               e.preventDefault();
               setWebglOk(false);
@@ -359,7 +328,7 @@ export function VelvetSphere({ scrollProgress }: { scrollProgress: React.RefObje
           }}
           className="pointer-events-none !absolute !inset-0"
         >
-          <Scene scrollProgress={scrollProgress} compactMode={compactMode} />
+          <Scene scrollProgress={scrollProgress} />
         </Canvas>
       )}
     </div>

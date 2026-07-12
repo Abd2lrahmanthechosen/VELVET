@@ -238,9 +238,13 @@ export function QuoteSection() {
     target: ref,
     offset: ["start end", "end start"],
   });
-  const contentOpacity = useTransform(scrollYProgress, [0, 0.16, 0.76, 1], [0, 1, 1, 0]);
-  const contentY = useTransform(scrollYProgress, [0, 0.2, 0.74, 1], ["8vh", "0vh", "0vh", "-7vh"]);
-  const ambientOpacity = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [0, 0.82, 0.82, 0]);
+  const contentOpacity = useTransform(scrollYProgress, [0.34, 0.46, 0.76, 1], [0, 1, 1, 0]);
+  const contentY = useTransform(
+    scrollYProgress,
+    [0.34, 0.46, 0.74, 1],
+    ["8vh", "0vh", "0vh", "-7vh"],
+  );
+  const ambientOpacity = useTransform(scrollYProgress, [0.32, 0.46, 0.8, 1], [0, 0.82, 0.82, 0]);
   const orbitY = useTransform(scrollYProgress, [0, 1], ["7vh", "-9vh"]);
 
   return (

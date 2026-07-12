@@ -842,3 +842,93 @@
     transform: translate3d(0, 12px, 0);
   }
 }
+
+/* ── Chapter V · GRIND — full-bleed violet editorial ─────────────────────── */
+.grind-stage {
+  position: relative;
+  min-height: 104vh;
+  width: 100%;
+  overflow: hidden;
+  isolation: isolate;
+  color: #efe9fb;
+  --ink: #efe9fb;
+  --ink-2: #c9b8f5;
+  --accent: #8b5cf6;
+  --face: #180b30;
+  --void: #090313;
+}
+
+/* local violet depth glow, matching the site's ambient bg */
+.grind-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse 58% 52% at 50% 56%, rgba(124, 58, 237, 0.32), transparent 70%),
+    radial-gradient(ellipse at 16% 14%, rgba(139, 92, 246, 0.14), transparent 42%),
+    radial-gradient(ellipse at 88% 82%, rgba(88, 35, 184, 0.14), transparent 44%);
+  pointer-events: none;
+}
+
+/* faint print grain over the whole section */
+.grind-stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: radial-gradient(circle, rgba(201, 184, 245, 0.05) 0.6px, transparent 0.7px);
+  background-size: 4px 4px;
+  pointer-events: none;
+}
+
+.grind-display {
+  font-family: "Neue Montreal", "General Sans", "Helvetica Neue", Arial, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 0.82;
+  text-transform: uppercase;
+}
+
+.grind-meta {
+  font-family: "Neue Montreal", "General Sans", "Helvetica Neue", Arial, sans-serif;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  line-height: 1.18;
+}
+
+/* spread/justified caption blocks like the reference */
+.grind-block {
+  font-family: "Neue Montreal", "General Sans", "Helvetica Neue", Arial, sans-serif;
+  font-weight: 600;
+  text-transform: uppercase;
+  line-height: 1.55;
+  letter-spacing: 0.06em;
+  text-align: justify;
+  text-align-last: justify;
+  word-spacing: 0.3em;
+  color: var(--ink-2);
+}
+
+@keyframes grind-fall {
+  0%,
+  100% {
+    transform: translateY(-2%) rotate(-4deg);
+  }
+  50% {
+    transform: translateY(3%) rotate(4deg);
+  }
+}
+
+@keyframes grind-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 767px) {
+  .grind-stage {
+    min-height: 92vh;
+  }
+}

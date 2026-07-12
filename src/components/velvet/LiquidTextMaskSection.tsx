@@ -184,6 +184,29 @@ export function LiquidTextMaskSection({ lines, blobColor }: LiquidTextMaskSectio
       trailOffsets[i] /= spineSum;
     }
 
+    // The SVG uses preserveAspectRatio="meet", so on wide viewports the viewBox is letterboxed
+    // with margins (padX/padY, measured in viewBox units). Tracking them lets the pointer map
+    // correctly AND lets the ink travel across the full section instead of the central band.
+    let padX = 0;
+    let padY = 0;
+    const gooFilter = svg.querySelector<SVGFilterElement>(`#${ids.goo}`);
+    const layout = () => {
+      rect = svg.getBoundingClientRect();
+      const scale = Math.min(rect.width / VIEW_BOX.width, rect.height / VIEW_BOX.height) || 1;
+      padX = Math.max(0, (rect.width - VIEW_BOX.width * scale) / 2) / scale;
+      padY = Math.max(0, (rect.height - VIEW_BOX.height * scale) / 2) / scale;
+      // Grow the goo filter region to cover the whole element so ink in the margins isn't clipped.
+      if (gooFilter) {
+        const mX = padX + 220;
+        const mY = padY + 220;
+        gooFilter.setAttribute("x", String(-mX));
+        gooFilter.setAttribute("y", String(-mY));
+        gooFilter.setAttribute("width", String(VIEW_BOX.width + mX * 2));
+        gooFilter.setAttribute("height", String(VIEW_BOX.height + mY * 2));
+      }
+    };
+    layout();
+
     const paint = () => {
       nodes.forEach((circle) => {
         const i = Number(circle.dataset.node);
@@ -203,10 +226,15 @@ export function LiquidTextMaskSection({ lines, blobColor }: LiquidTextMaskSectio
       return;
     }
 
-    const toSvg = (clientX: number, clientY: number) => ({
-      x: clamp(((clientX - rect.left) / rect.width) * VIEW_BOX.width, 40, VIEW_BOX.width - 40),
-      y: clamp(((clientY - rect.top) / rect.height) * VIEW_BOX.height, 40, VIEW_BOX.height - 40),
-    });
+    const toSvg = (clientX: number, clientY: number) => {
+      const scale = Math.min(rect.width / VIEW_BOX.width, rect.height / VIEW_BOX.height) || 1;
+      const offX = (rect.width - VIEW_BOX.width * scale) / 2;
+      const offY = (rect.height - VIEW_BOX.height * scale) / 2;
+      return {
+        x: clamp((clientX - rect.left - offX) / scale, -padX + 40, VIEW_BOX.width + padX - 40),
+        y: clamp((clientY - rect.top - offY) / scale, -padY + 40, VIEW_BOX.height + padY - 40),
+      };
+    };
 
     const sampleTrail = (distance: number) => {
       let covered = 0;
@@ -322,7 +350,7 @@ export function LiquidTextMaskSection({ lines, blobColor }: LiquidTextMaskSectio
     };
 
     const onEnter = (event: PointerEvent) => {
-      rect = svg.getBoundingClientRect();
+      layout();
       pointerInside = true;
       const point = toSvg(event.clientX, event.clientY);
       target.x = point.x;
@@ -339,7 +367,7 @@ export function LiquidTextMaskSection({ lines, blobColor }: LiquidTextMaskSectio
       pointerInside = false;
     };
     const onResize = () => {
-      rect = svg.getBoundingClientRect();
+      layout();
     };
 
     // Only animate while the section is on-screen (perf: costs nothing elsewhere).

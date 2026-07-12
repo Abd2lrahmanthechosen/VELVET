@@ -480,47 +480,7 @@ export function Process() {
   );
 }
 
-export function Results() {
-  const items = [
-    { n: "4.8×", t: "Median revenue lift within 12 months" },
-    { n: "62%", t: "Faster time-to-market on rebuilt product lines" },
-    { n: "9/10", t: "Founders return for a second engagement" },
-    { n: "0", t: "Templates. Ever." },
-  ];
-  return (
-    <section className="relative z-10 py-[22vh]">
-      <div className="mx-auto max-w-[1600px] px-6 md:px-16">
-        <div className="font-label mb-16 text-white/40">— chapter v · gravity</div>
-        <div className="grid gap-[6vh] md:grid-cols-2">
-          {items.map((it, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 40 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 1, delay: i * 0.08 }}
-              className="flex items-baseline gap-8 border-b border-white/10 pb-10"
-            >
-              <div
-                className="font-display text-gradient"
-                style={{
-                  fontSize: "clamp(4rem, 10vw, 9rem)",
-                  lineHeight: 0.9,
-                  letterSpacing: "-0.04em",
-                }}
-              >
-                {it.n}
-              </div>
-              <div className="max-w-[22ch] font-serif-italic text-lg text-white/60 md:text-xl">
-                {it.t}
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
+export { GravityGrind as Results } from "./GravityGrind";
 
 export function Testimonials() {
   return (

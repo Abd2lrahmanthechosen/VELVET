@@ -254,6 +254,8 @@
     radial-gradient(ellipse at 78% 68%, rgba(88, 35, 184, 0.16), transparent 46%);
   content: "";
   pointer-events: none;
+  transform: translateZ(0);
+  will-change: transform;
   -webkit-mask-image: linear-gradient(to bottom, transparent, #000 16%, #000 84%, transparent);
   mask-image: linear-gradient(to bottom, transparent, #000 16%, #000 84%, transparent);
 }
@@ -276,6 +278,9 @@
     radial-gradient(circle at 82% 76%, rgba(145, 93, 255, 0.86) 0 1px, transparent 1.4px);
   -webkit-mask-image: linear-gradient(to bottom, transparent, #000 18%, #000 82%, transparent);
   mask-image: linear-gradient(to bottom, transparent, #000 18%, #000 82%, transparent);
+  contain: paint;
+  transform: translateZ(0);
+  will-change: opacity;
 }
 
 .brand-quote-orbit {
@@ -287,6 +292,17 @@
     inset 38px 0 100px rgba(124, 58, 237, 0.18),
     0 0 120px rgba(124, 58, 237, 0.18);
   opacity: 0.8;
+  contain: layout style;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+  will-change: transform, opacity;
+}
+
+.brand-quote-content {
+  contain: paint;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+  will-change: transform, opacity;
 }
 
 .brand-quote {
@@ -347,6 +363,8 @@
     radial-gradient(circle at 12% 74%, rgba(72, 28, 150, 0.18), transparent 28%);
   -webkit-mask-image: linear-gradient(to bottom, transparent, #000 18%, #000 82%, transparent);
   mask-image: linear-gradient(to bottom, transparent, #000 18%, #000 82%, transparent);
+  contain: paint;
+  transform: translateZ(0);
 }
 
 .disciplines-starfield {
@@ -360,6 +378,8 @@
     radial-gradient(circle at 30% 93%, rgba(136, 76, 255, 0.9) 0 1px, transparent 1.4px);
   -webkit-mask-image: linear-gradient(to bottom, transparent, #000 15%, #000 85%, transparent);
   mask-image: linear-gradient(to bottom, transparent, #000 15%, #000 85%, transparent);
+  contain: paint;
+  transform: translateZ(0);
 }
 
 .liquid-text-section {
@@ -630,6 +650,8 @@
 .discipline-row {
   --split: 52%;
   contain: paint;
+  content-visibility: auto;
+  contain-intrinsic-block-size: 160px;
   cursor: pointer;
   background: transparent;
   isolation: isolate;

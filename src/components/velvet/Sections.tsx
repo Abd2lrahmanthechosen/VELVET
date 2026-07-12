@@ -238,13 +238,13 @@ export function QuoteSection() {
     target: ref,
     offset: ["start end", "end start"],
   });
-  const contentOpacity = useTransform(scrollYProgress, [0.34, 0.46, 0.76, 1], [0, 1, 1, 0]);
+  const contentOpacity = useTransform(scrollYProgress, [0.48, 0.62, 0.76, 1], [0, 1, 1, 0]);
   const contentY = useTransform(
     scrollYProgress,
-    [0.34, 0.46, 0.74, 1],
+    [0.48, 0.62, 0.74, 1],
     ["8vh", "0vh", "0vh", "-7vh"],
   );
-  const ambientOpacity = useTransform(scrollYProgress, [0.32, 0.46, 0.8, 1], [0, 0.82, 0.82, 0]);
+  const ambientOpacity = useTransform(scrollYProgress, [0.46, 0.6, 0.8, 1], [0, 0.82, 0.82, 0]);
   const orbitY = useTransform(scrollYProgress, [0, 1], ["7vh", "-9vh"]);
 
   return (
@@ -258,7 +258,10 @@ export function QuoteSection() {
         className="brand-quote-orbit pointer-events-none absolute h-[58vmin] w-[58vmin]"
       />
       <div className="relative mx-auto flex min-h-screen max-w-[1800px] flex-col justify-center px-6 py-[18vh] md:px-16">
-        <motion.div style={{ opacity: contentOpacity, y: contentY }}>
+        <motion.div
+          className="brand-quote-content"
+          style={{ opacity: contentOpacity, y: contentY }}
+        >
           <blockquote className="brand-quote">
             <span>BEING</span>
             <span>UNFORGETTABLE</span>

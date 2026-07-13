@@ -7,7 +7,7 @@ import { getHeroProgress, smoothstep } from "./heroTimeline";
 
 const HANDOFF_COMPLETE = 0.96;
 const COMPACT_ENTER = 0.985;
-const COMPACT_EXIT = 0.94;
+const COMPACT_EXIT = HANDOFF_COMPLETE;
 const COMPACT_SIZE = 260;
 const COMPACT_LEFT = -20;
 const COMPACT_TOP = -30;
@@ -172,7 +172,9 @@ function Scene({
     if (p < 0.5) tmp.copy(cLight).lerp(cMid, p / 0.5);
     else tmp.copy(cMid).lerp(cDeep, (p - 0.5) / 0.5);
     bgColor.copy(tmp);
-    const backgroundAlpha = 1 - smoothstep(0.88, HANDOFF_COMPLETE, p);
+    const backgroundAlpha = compactMode.current
+      ? 0
+      : 1 - smoothstep(0.88, HANDOFF_COMPLETE, p);
     three.scene.background = null;
     three.scene.fog = backgroundAlpha > 0.001 ? fog : null;
     fog.color.copy(bgColor);

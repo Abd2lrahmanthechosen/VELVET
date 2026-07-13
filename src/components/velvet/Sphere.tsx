@@ -258,7 +258,6 @@ export function VelvetSphere({ scrollProgress }: { scrollProgress: React.RefObje
   const layer = useRef<HTMLDivElement>(null);
   const compactMode = useRef(false);
   const resizeRenderer = useRef<((width: number, height: number) => void) | null>(null);
-  const clearRenderer = useRef<(() => void) | null>(null);
   const [mounted, setMounted] = useState(false);
   const [webglOk, setWebglOk] = useState(true);
 
@@ -279,7 +278,6 @@ export function VelvetSphere({ scrollProgress }: { scrollProgress: React.RefObje
       node.dataset.compact = nextCompact ? "true" : "false";
 
       if (nextCompact) {
-        clearRenderer.current?.();
         node.style.inset = "auto";
         node.style.left = `${COMPACT_LEFT}px`;
         node.style.top = `${COMPACT_TOP}px`;
@@ -340,12 +338,9 @@ export function VelvetSphere({ scrollProgress }: { scrollProgress: React.RefObje
           dpr={[1, 1.15]}
           gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
           camera={{ position: [0, 0, 5], fov: 42 }}
-          onCreated={({ gl, scene, setSize }) => {
-            resizeRenderer.current = (width, height) => setSize(width, height, 0, 0);
-            clearRenderer.current = () => {
-              scene.background = null;
-              scene.fog = null;
-              gl.setClearColor(0x000000, 0);
+          onCreated={({ gl, setSize }) => {
+            resizeRenderer.current = (width, height) => {
+              setSize(width, height, 0, 0);
               gl.clear(true, true, true);
             };
             if (compactMode.current) setSize(COMPACT_SIZE, COMPACT_SIZE, 0, 0);
